@@ -47,7 +47,7 @@ from public.em_cmp_lib_tracking_001
 where
 __createdat >= CURRENT_DATE ::TIMESTAMP - 31 and  __createdat < CURRENT_DATE ::TIMESTAMP 
 and "searchdate" >= CURRENT_DATE ::DATE -31 and "searchdate" <= CURRENT_DATE ::DATE -1 
-and upper(airline_code)='VN' 
+--and upper(airline_code)='XX' 
 and json_extract_path_text(variables, 'ptc')='CP'
 and event_action = 'fsi'
 and "emcid" <> '' and "emcid" <> 'n/a'
@@ -69,7 +69,7 @@ totalpriceusd as revenue
 from public.normalized_farenet_confirmation_001
 where 
 __createdat >= CURRENT_DATE ::TIMESTAMP - 31 
-and upper(airlineiatacode)='VN' 
+--and upper(airlineiatacode)='XX' 
 and totalpriceusd is not null
 group by __createdat,upper(airlineIatacode), emcid, farenetconfirmationid, totalpriceusd) cf
 
@@ -98,7 +98,7 @@ from public.em_cmp_lib_tracking_001
 where
 __createdat >= CURRENT_DATE ::TIMESTAMP - 31 and  __createdat < CURRENT_DATE ::TIMESTAMP 
 and "searchdate" >= CURRENT_DATE ::DATE -31 and "searchdate" <= CURRENT_DATE ::DATE -1 
-and upper(airline_code)='VN' 
+--and upper(airline_code)='XX' 
 and event_category not like '%booking-popup%'
 and json_extract_path_text(variables, 'ptc')='CP'
 and event_action = 'pageview'
