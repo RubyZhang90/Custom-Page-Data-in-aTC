@@ -1,0 +1,110 @@
+ROLLBACK;
+select 
+searchdate,
+Airline as airlineIataCode,
+siteEdition,
+urlslug,
+count(DISTINCT emcid) as uniquevisitors,
+count(DISTINCT CASE WHEN event_action = 'pageview' THEN search_timestamp END) as pageviews,
+count(DISTINCT CASE WHEN event_action = 'fsi' THEN search_timestamp END) as fsi,
+sum(bookings) as bookings,
+sum(revenueusd) as revenueusd
+from 
+(
+select 
+searchdate,
+search_timestamp,
+Airline,
+siteEdition,
+event_action,
+emcid,
+urlslug,
+sum(case when row =1 then bookings else 0 end ) as bookings,
+sum(case when row =1 then revenue else 0 end ) as revenueusd
+from
+(select 
+et.searchdate,
+et.search_timestamp,
+et.Airline,
+et.siteEdition,
+et.event_action,
+et.emcid,
+et.urlslug,
+cf.bookings,
+cf.revenue,
+ROW_NUMBER () over
+(Partition by et.emcid,cf.farenetconfirmationid order by datediff(second,et."search_timestamp",cf."book_timestamp") asc ) as row
+from 
+(select
+__createdat::DATE as searchdate,
+__createdat::TIMESTAMP as search_timestamp,
+upper(airline_code) as Airline,
+json_extract_path_text(variables, 'se') as siteEdition,
+event_action,
+json_extract_path_text(variables,'emcid') as emcid,
+reverse(split_part(reverse(replace(replace(replace(replace(replace(replace(replace(json_extract_path_text(variables,'url'),'\?',''),'\#',''),'\'',''),'\%3A',':'),'\%2F','/'),'\%3F',''),'\%23','')),'/',1)) as urlslug
+from public.em_cmp_lib_tracking_001
+where
+__createdat >= CURRENT_DATE ::TIMESTAMP - 31 and  __createdat < CURRENT_DATE ::TIMESTAMP 
+and "searchdate" >= CURRENT_DATE ::DATE -31 and "searchdate" <= CURRENT_DATE ::DATE -1 
+and upper(airline_code)='VN' 
+and json_extract_path_text(variables, 'ptc')='CP'
+and event_action = 'fsi'
+and "emcid" <> '' and "emcid" <> 'n/a'
+AND json_extract_path_text(variables, 'url') !~ '\:\/\/[a-z]+-[a-z]+\.'
+AND json_extract_path_text(variables, 'url') !~ '\:\/\/[a-z]+_[a-z]+\.'
+
+) et
+
+left join
+
+(select
+upper(airlineIatacode) as book_Airline,
+__createdat as book_timestamp,
+__createdat::DATE as book_date,
+emcid as book_emcid,
+farenetconfirmationid,
+count(distinct farenetconfirmationid) as bookings,
+totalpriceusd as revenue
+from public.normalized_farenet_confirmation_001
+where 
+__createdat >= CURRENT_DATE ::TIMESTAMP - 31 
+and upper(airlineiatacode)='VN' 
+and totalpriceusd is not null
+group by __createdat,upper(airlineIatacode), emcid, farenetconfirmationid, totalpriceusd) cf
+
+on et.Airline = cf.book_Airline
+and et.emcid = cf."book_emcid"
+and et.searchdate +31 >= cf.book_date
+and et.searchdate <= cf.book_date
+and et.search_timestamp < cf.book_timestamp
+
+)
+group by searchdate,search_timestamp,Airline,siteEdition,event_action,emcid,urlslug
+
+UNION 
+
+select
+__createdat::DATE as searchdate,
+__createdat::TIMESTAMP as search_timestamp,
+upper(airline_code) as Airline,
+json_extract_path_text(variables, 'se') as siteEdition,
+event_action,
+json_extract_path_text(variables,'emcid') as emcid,
+reverse(split_part(reverse(replace(replace(replace(replace(replace(replace(replace(json_extract_path_text(variables,'url'),'\?',''),'\#',''),'\'',''),'\%3A',':'),'\%2F','/'),'\%3F',''),'\%23','')),'/',1)) as urlslug,
+0 AS bookings,
+0 AS revenueusd
+from public.em_cmp_lib_tracking_001
+where
+__createdat >= CURRENT_DATE ::TIMESTAMP - 31 and  __createdat < CURRENT_DATE ::TIMESTAMP 
+and "searchdate" >= CURRENT_DATE ::DATE -31 and "searchdate" <= CURRENT_DATE ::DATE -1 
+and upper(airline_code)='VN' 
+and event_category not like '%booking-popup%'
+and json_extract_path_text(variables, 'ptc')='CP'
+and event_action = 'pageview'
+AND json_extract_path_text(variables, 'url') !~ '\:\/\/[a-z]+-[a-z]+\.'
+AND json_extract_path_text(variables, 'url') !~ '\:\/\/[a-z]+_[a-z]+\.'
+
+)
+GROUP BY searchdate,Airline,siteEdition,urlslug
+;
