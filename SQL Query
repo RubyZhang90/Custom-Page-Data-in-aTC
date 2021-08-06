@@ -2,7 +2,7 @@ ROLLBACK;
 select 
 searchdate,
 Airline as airlineIataCode,
-siteEdition,
+market,
 urlslug,
 count(DISTINCT emcid) as uniquevisitors,
 count(DISTINCT CASE WHEN event_action = 'pageview' THEN search_timestamp END) as pageviews,
@@ -15,7 +15,7 @@ select
 searchdate,
 search_timestamp,
 Airline,
-siteEdition,
+market,
 event_action,
 emcid,
 urlslug,
@@ -26,7 +26,7 @@ from
 et.searchdate,
 et.search_timestamp,
 et.Airline,
-et.siteEdition,
+et.market,
 et.event_action,
 et.emcid,
 et.urlslug,
@@ -39,7 +39,7 @@ from
 __createdat::DATE as searchdate,
 __createdat::TIMESTAMP as search_timestamp,
 upper(airline_code) as Airline,
-json_extract_path_text(variables, 'se') as siteEdition,
+coalesce(nullif(split_part(json_extract_path_text(variables, 'se'),'-',2),''),'Global') as market,
 event_action,
 json_extract_path_text(variables,'emcid') as emcid,
 reverse(split_part(reverse(replace(replace(replace(replace(replace(replace(replace(json_extract_path_text(variables,'url'),'\?',''),'\#',''),'\'',''),'\%3A',':'),'\%2F','/'),'\%3F',''),'\%23','')),'/',1)) as urlslug
@@ -80,7 +80,7 @@ and et.searchdate <= cf.book_date
 and et.search_timestamp < cf.book_timestamp
 
 )
-group by searchdate,search_timestamp,Airline,siteEdition,event_action,emcid,urlslug
+group by searchdate,search_timestamp,Airline,market,event_action,emcid,urlslug
 
 UNION 
 
@@ -88,7 +88,7 @@ select
 __createdat::DATE as searchdate,
 __createdat::TIMESTAMP as search_timestamp,
 upper(airline_code) as Airline,
-json_extract_path_text(variables, 'se') as siteEdition,
+coalesce(nullif(split_part(json_extract_path_text(variables, 'se'),'-',2),''),'Global') as market,
 event_action,
 json_extract_path_text(variables,'emcid') as emcid,
 reverse(split_part(reverse(replace(replace(replace(replace(replace(replace(replace(json_extract_path_text(variables,'url'),'\?',''),'\#',''),'\'',''),'\%3A',':'),'\%2F','/'),'\%3F',''),'\%23','')),'/',1)) as urlslug,
@@ -106,5 +106,5 @@ AND json_extract_path_text(variables, 'url') !~ '\:\/\/[a-z]+-[a-z]+\.'
 AND json_extract_path_text(variables, 'url') !~ '\:\/\/[a-z]+_[a-z]+\.'
 
 )
-GROUP BY searchdate,Airline,siteEdition,urlslug
+GROUP BY searchdate,Airline,market,urlslug
 ;
